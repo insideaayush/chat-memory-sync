@@ -30,3 +30,26 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+
+  homebrew:
+    # Auto-bump the Homebrew tap formula (url + sha256 + version) to this tag.
+    # Requires a repo secret HOMEBREW_TAP_TOKEN: a PAT with contents:write on
+    # insideaayush/homebrew-tap. See RELEASING.md.
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bump tap formula
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: chat-memory-sync
+          formula-path: Formula/chat-memory-sync.rb
+          homebrew-tap: insideaayush/homebrew-tap
+          base-branch: main
+          tag-name: ${{ github.ref_name }}
+          download-url: https://github.com/insideaayush/chat-memory-sync/archive/refs/tags/${{ github.ref_name }}.tar.gz
+          commit-message: |
+            chat-memory-sync {{version}}
+
+            Automated bump from release ${{ github.ref_name }}.
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
