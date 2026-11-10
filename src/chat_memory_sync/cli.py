@@ -12,6 +12,7 @@ commands:
   sync        pull -> export all harnesses -> commit -> push (what the job runs)
   export      export only (no git)
   recall      search past chats (also available as the `recall` command)
+  serve       browse & search your chats in a local web UI
   doctor      show config, detected harnesses, and chat counts
   version     print version
 
@@ -19,6 +20,7 @@ examples:
   chat-memory install --data-remote git@github.com:you/chat-memory.git
   chat-memory sync
   chat-memory recall "auth token refresh"
+  chat-memory serve
   recall "rate limiting" --all
 """
 
@@ -51,6 +53,8 @@ def main():
         from . import sync; return sync.main()
     if cmd == "recall":
         from . import recall; return recall.main(rest)
+    if cmd == "serve":
+        from . import web; return web.main(rest)
     if cmd in ("doctor", "status"):
         return doctor()
     print(f"unknown command: {cmd}\n", file=sys.stderr)

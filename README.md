@@ -68,6 +68,7 @@ chat-memory install   # config + data repo + daily job + recall
 chat-memory sync      # pull -> export -> commit -> push (what the job runs)
 chat-memory export    # export only (no git)
 chat-memory recall …  # search past chats (also the standalone `recall` command)
+chat-memory serve     # browse & search your chats in a local web UI
 chat-memory doctor    # config, detected harnesses, chat counts
 ```
 
@@ -101,6 +102,17 @@ index.db`), never synced.
 **For agents:** run `recall "<topic>"` from the repo you're working in, read the top
 hits, then open those `.md` files for full context. Add a line to your project's
 `AGENTS.md`/`CLAUDE.md` so assistants do this automatically.
+
+## Browse in a UI
+
+```bash
+chat-memory serve          # opens http://127.0.0.1:8787
+chat-memory serve --port 9000 --no-open
+```
+
+A lightweight local web UI (pure stdlib, no deps, binds to localhost only): a sidebar
+of projects, instant BM25 search across everything, and a reader that renders each
+chat. Backed by the same index as `recall`.
 
 ## Multi-machine
 
