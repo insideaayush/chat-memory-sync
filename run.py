@@ -31,14 +31,24 @@ def git(*args, check=False):
     return r
 
 
+def ensure_identity():
+    """Commit as the user's own git identity. Only set a neutral fallback if the
+    machine has no identity configured at all (so a fresh box doesn't error)."""
+    if git("config", "user.email").stdout.strip():
+        return
+    git("config", "user.name", "chat-memory-sync")
+    git("config", "user.email", "chat-memory-sync@users.noreply.github.com")
+
+
 def main():
     log("===== sync start =====")
 
     if not os.path.isdir(os.path.join(REPO, ".git")):
         git("init")
+        ensure_identity()
         git("add", "-A")
-        git("-c", "user.name=chat-memory-sync", "-c", "user.email=sync@local",
-            "commit", "-m", "Initial export")
+        git("commit", "-m", "Initial export")
+    ensure_identity()
 
     has_origin = git("remote", "get-url", "origin").returncode == 0
     branch = (git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "main")
@@ -62,8 +72,7 @@ def main():
     if git("status", "--porcelain").stdout.strip():
         host = subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip() or "machine"
         git("add", "-A")
-        git("-c", "user.name=chat-memory-sync", "-c", "user.email=sync@local",
-            "commit", "-m", f"Sync chat memory ({host}) {datetime.datetime.now():%Y-%m-%d %H:%M}")
+        git("commit", "-m", f"Sync chat memory ({host}) {datetime.datetime.now():%Y-%m-%d %H:%M}")
         log("committed changes")
         if has_origin:
             if git("push", "origin", branch).returncode != 0:
