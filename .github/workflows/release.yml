@@ -8,8 +8,6 @@ on:
 jobs:
   pypi:
     runs-on: ubuntu-latest
-    # Tolerate failure until PyPI Trusted Publishing is configured (see RELEASING.md).
-    continue-on-error: true
     environment: pypi
     permissions:
       id-token: write   # PyPI Trusted Publishing (OIDC) - no token needed
