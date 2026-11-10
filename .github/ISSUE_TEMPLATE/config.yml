@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/insideaayush/chat-memory-sync/blob/main/CONTRIBUTING.md
+    about: How to add a harness adapter or fix a bug.
+  - name: Roadmap
+    url: https://github.com/insideaayush/chat-memory-sync/blob/main/ROADMAP.md
+    about: Planned work and ideas to pick up.

@@ -85,6 +85,26 @@ Every machine runs the same job independently. Each run:
 Set a machine's name with `--client` (default: hostname), or
 `CHAT_MEMORY_CLIENT=cloud-vm`.
 
+## Harness support
+
+Legend: ✅ supported · 🧪 partial · 🔜 stub/planned · ❓ wanted (help us!)
+
+| Harness | Status | Source | Notes |
+| ------- | :----: | ------ | ----- |
+| Cursor | ✅ | `…/Cursor/User/globalStorage/state.vscdb` (OS-aware) | IDE chats / composers |
+| Cursor Agent CLI | ✅ | `~/.cursor/acp-sessions/<uuid>/store.db` + `meta.json` | blob store |
+| Claude Code | ✅ | `~/.claude/projects/<enc>/<uuid>.jsonl` | |
+| OpenCode | ✅ | `~/.local/share/opencode/opencode.db` | |
+| Pi | ✅ | `~/.pi/agent/sessions/<enc>/<ts>_<id>.jsonl` | |
+| Codex | ✅ | `~/.codex/sessions/**/rollout-*.jsonl` (+ `archived_sessions/`) | |
+| Gemini CLI | 🧪 | `~/.gemini/tmp/<key>/checkpoint-*.json` (+ `logs.json`) | full via checkpoints; else prompts only |
+| Antigravity | 🔜 | opaque protobuf LevelDB (`shared_proto_db`) | needs a decoder |
+| Windsurf, Aider, Cline, Continue, Zed, Copilot Chat, … | ❓ | — | [request](../../issues/new?template=harness_request.md) or PR |
+
+Can't track every tool in the world — **adapters are community-driven**. Adding one is
+usually a single function; see **[CONTRIBUTING.md](CONTRIBUTING.md)** and the
+**[ROADMAP](ROADMAP.md)**.
+
 ## How it works
 
 | File | Role |
@@ -95,35 +115,11 @@ Set a machine's name with `--client` (default: hostname), or
 | `recall.py` | full-text (BM25) search, auto-scoped to the current project |
 | `install.py` | one-command setup + scheduler + `recall` command |
 
-### Where each harness stores chats
-
-| Harness | Source |
-| ------- | ------ |
-| Cursor | `…/Cursor/User/globalStorage/state.vscdb` (OS-aware) |
-| Cursor Agent CLI | `~/.cursor/acp-sessions/<uuid>/store.db` + `meta.json` |
-| Claude Code | `~/.claude/projects/<enc>/<uuid>.jsonl` |
-| OpenCode | `~/.local/share/opencode/opencode.db` |
-| Pi | `~/.pi/agent/sessions/<enc>/<ts>_<id>.jsonl` |
-| Codex | `~/.codex/sessions/**/rollout-*.jsonl` (+ `archived_sessions/`) |
-| Gemini CLI | `~/.gemini/tmp/<key>/checkpoint-*.json` (+ `logs.json` prompts) |
-| Antigravity | _stub_ — Cascade chats are in an opaque protobuf LevelDB |
-
 ### Adding a harness
 
-Write a generator in `sync.py` that yields dicts of the shape:
-
-```python
-{
-  "harness": "myharness", "id": "<session id>", "project": canonical_project(cwd),
-  "source_path": cwd, "title": "...", "created": <ms>, "updated": <ms>,
-  "models": {"model-name"},
-  "messages": [{"role": "user|assistant", "model": "", "thinking": "",
-                "text": "...", "tools": [{"name","args","result"}]}],
-}
-```
-
-…then add it to `ADAPTERS`. The writer, indexing, client-tagging, and sync handle the
-rest.
+Adapters are community-driven — adding one is usually a single generator function in
+`sync.py`. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full contract and the
+support table above.
 
 ## Config reference
 
@@ -135,6 +131,24 @@ rest.
 
 Env overrides: `CHAT_MEMORY_DATA_DIR`, `CHAT_MEMORY_CLIENT`, `CHAT_MEMORY_HOME`.
 
+## Give your agents memory
+
+Any assistant with shell access can query all your past chats via `recall`. Add a short
+snippet to your project's `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` so assistants do it
+automatically — copy-paste blocks per harness are in
+**[docs/agent-integration.md](docs/agent-integration.md)**.
+
+## Contributing & community
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — add a harness adapter (the main ask) or fix a bug.
+- **[ROADMAP.md](ROADMAP.md)** — planned work; pick anything up.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**.
+- Not a coder? A [harness request](../../issues/new?template=harness_request.md) with
+  storage paths + a redacted sample is hugely useful.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Contributions accepted under the same license.
+
+> The tooling is open source; **your chats stay in your own private data repo.**
+> This project reads local chat stores and writes Markdown — review the code before running it.
