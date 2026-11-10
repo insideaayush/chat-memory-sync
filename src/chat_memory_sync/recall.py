@@ -12,12 +12,12 @@ then open those files for full context.
 """
 
 EXAMPLES = """examples:
-  recall "affiliate tier rebate"              auto-scope to the current repo (by CWD)
-  recall "worktree flow" --project based-one-mono
-  recall "nesting model" --all                search every project
-  recall "payout bug" --harness cursor --since 2026-09 -k 10
-  recall "oauth flow" --full                  print file paths only (pipe-friendly)
-  recall --reindex                            force rebuild the index
+  recall "rate limiting"                       auto-scope to the current repo (by CWD)
+  recall "retry backoff" --project my-api
+  recall "feature flag rollout" --all          search every project
+  recall "flaky integration test" --harness cursor --since 2026-09 -k 10
+  recall "websocket reconnect" --full          print file paths only (pipe-friendly)
+  recall --reindex                             force rebuild the index
 """
 import os, sys, re, glob, sqlite3, argparse, datetime
 from . import cmlib

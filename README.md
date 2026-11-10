@@ -90,7 +90,7 @@ Releases are automated (PyPI + Homebrew) — see [RELEASING.md](RELEASING.md).
 cd ~/code/my-project
 recall "auth token refresh"        # ranked (BM25) hits for THIS repo, with snippets
 recall "rate limiting" --all       # every project
-recall "payout bug" --harness cursor --since 2026-09 -k 10
+recall "flaky integration test" --harness cursor --since 2026-09 -k 10
 recall "..." --full                # just file paths (pipe-friendly)
 ```
 

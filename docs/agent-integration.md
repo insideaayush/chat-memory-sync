@@ -15,7 +15,7 @@ assistant in Claude Code can read what you discussed in Cursor, Codex, Gemini, e
 ```bash
 recall "auth token refresh"       # ranked hits for the CURRENT project (by CWD)
 recall "rate limiting" --all      # across every project
-recall "payout bug" --harness cursor --since 2026-09 -k 10
+recall "flaky integration test" --harness cursor --since 2026-09 -k 10
 recall "oauth flow" --full        # just file paths (easy to pipe / open)
 ```
 
