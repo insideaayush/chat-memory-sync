@@ -35,24 +35,31 @@ jobs:
           generate_release_notes: true
 
   homebrew:
-    # Auto-bump the Homebrew tap formula (url + sha256 + version) to this tag.
-    # Requires a repo secret HOMEBREW_TAP_TOKEN: a PAT with contents:write on
-    # insideaayush/homebrew-tap. See RELEASING.md.
+    # Auto-bump the Homebrew tap formula (url + sha256) to this tag by committing
+    # directly to the tap. Requires repo secret HOMEBREW_TAP_TOKEN: a PAT with
+    # Contents:write on insideaayush/homebrew-tap. See RELEASING.md.
     needs: github-release
     runs-on: ubuntu-latest
     steps:
       - name: Bump tap formula
-        uses: mislav/bump-homebrew-formula-action@v3
-        with:
-          formula-name: chat-memory-sync
-          formula-path: Formula/chat-memory-sync.rb
-          homebrew-tap: insideaayush/homebrew-tap
-          base-branch: main
-          tag-name: ${{ github.ref_name }}
-          download-url: https://github.com/insideaayush/chat-memory-sync/archive/refs/tags/${{ github.ref_name }}.tar.gz
-          commit-message: |
-            chat-memory-sync {{version}}
-
-            Automated bump from release ${{ github.ref_name }}.
         env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          TAP: insideaayush/homebrew-tap
+          FORMULA: Formula/chat-memory-sync.rb
+          REPO: insideaayush/chat-memory-sync
+        run: |
+          set -euo pipefail
+          VER="${TAG#v}"
+          URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz"
+          SHA=$(curl -fsSL "$URL" | sha256sum | awk '{print $1}')
+          echo "version=$VER url=$URL sha=$SHA"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${TAP}.git" tap
+          cd tap
+          sed -i -E "s|url \"[^\"]*\"|url \"${URL}\"|" "$FORMULA"
+          sed -i -E "s|sha256 \"[^\"]*\"|sha256 \"${SHA}\"|" "$FORMULA"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then echo "no change"; exit 0; fi
+          git commit -am "chat-memory-sync ${VER} (automated bump from ${TAG})"
+          git push origin HEAD
