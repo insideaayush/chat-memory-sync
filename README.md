@@ -31,18 +31,45 @@ Machine-local state (search index, client name, logs) also lives under
 
 ## Install
 
+Get the `chat-memory` CLI (pure Python, no dependencies):
+
 ```bash
-git clone https://github.com/<you>/chat-memory-sync.git
-cd chat-memory-sync
-python3 install.py \
+# Homebrew
+brew install insideaayush/tap/chat-memory-sync
+
+# pipx (recommended for pip users)
+pipx install chat-memory-sync
+
+# pip
+pip install --user chat-memory-sync
+
+# from source
+git clone https://github.com/insideaayush/chat-memory-sync.git
+pip install ./chat-memory-sync
+```
+
+Then set it up on this machine:
+
+```bash
+chat-memory install \
     --data-remote git@github.com:<you>/chat-memory.git \
     --client "macbook-air" \
     --time 21:00
 ```
 
 That one command: writes config, clones (or inits) your private data repo, runs the
-first sync, registers a **daily background job** for your OS, and installs the `recall`
-command.
+first sync, registers a **daily background job** for your OS, and ensures the `recall`
+command is available.
+
+### Commands
+
+```
+chat-memory install   # config + data repo + daily job + recall
+chat-memory sync      # pull -> export -> commit -> push (what the job runs)
+chat-memory export    # export only (no git)
+chat-memory recall …  # search past chats (also the standalone `recall` command)
+chat-memory doctor    # config, detected harnesses, chat counts
+```
 
 | OS | Background job |
 | -- | -------------- |
@@ -50,10 +77,12 @@ command.
 | Windows | Task Scheduler task `ChatMemorySync` |
 | Linux | systemd **user** timer (falls back to cron) |
 
-Only needs `git` + `python3`. Re-running `install.py` is safe.
+Only needs `git` + `python3`. Re-running `chat-memory install` is safe.
 
 > No private data repo yet? Create an empty **private** repo on your git host first,
 > then pass its URL as `--data-remote`. Or omit `--data-remote` to keep it local-only.
+
+Releases are automated (PyPI + Homebrew) — see [RELEASING.md](RELEASING.md).
 
 ## Finding relevant chats — `recall`
 

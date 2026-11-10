@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chat-memory-sync"
+dynamic = ["version"]
+description = "Unified, searchable memory bank of your AI coding chats across Cursor, Claude Code, OpenCode, Codex, Gemini CLI, Pi and more — synced across machines."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Aayush Gautam" }]
+keywords = ["ai", "cli", "memory", "chat-history", "cursor", "claude-code", "codex", "gemini", "opencode", "developer-tools"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+dependencies = []   # standard library only
+
+[project.urls]
+Homepage = "https://github.com/insideaayush/chat-memory-sync"
+Repository = "https://github.com/insideaayush/chat-memory-sync"
+Issues = "https://github.com/insideaayush/chat-memory-sync/issues"
+
+[project.scripts]
+chat-memory = "chat_memory_sync.cli:main"
+recall = "chat_memory_sync.recall:main"
+
+[tool.hatch.version]
+path = "src/chat_memory_sync/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chat_memory_sync"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/chat_memory_sync", "README.md", "LICENSE", "CONTRIBUTING.md", "ROADMAP.md", "CODE_OF_CONDUCT.md", "docs"]

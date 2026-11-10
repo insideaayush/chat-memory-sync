@@ -5,10 +5,7 @@ Works on mac / windows / linux (only needs `git` + `python3`). Scheduled by the
 platform background job; also safe to run manually:  python3 run.py
 """
 import os, sys, subprocess, datetime
-
-SYNC_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, SYNC_DIR)
-import cmlib
+from . import cmlib
 
 REPO = cmlib.data_dir()
 LOG = os.path.join(cmlib.state_dir(), "sync.log")
@@ -41,6 +38,9 @@ def ensure_identity():
 
 
 def main():
+    global REPO, LOG
+    REPO = cmlib.data_dir()
+    LOG = os.path.join(cmlib.state_dir(), "sync.log")
     log("===== sync start =====")
 
     if not os.path.isdir(os.path.join(REPO, ".git")):
@@ -57,13 +57,13 @@ def main():
         r = git("pull", "--rebase", "--autostash", "origin", branch)
         log("pulled from origin" if r.returncode == 0 else "pull failed (continuing)")
 
-    # export (import after sys.path setup)
-    import sync as exporter
+    # export
+    from . import sync as exporter
     exporter.main()
 
     # warm the recall full-text index so first query after a sync is instant
     try:
-        import recall
+        from . import recall
         recall.ensure_index(force=True)
         log("recall index rebuilt")
     except Exception as e:

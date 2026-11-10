@@ -13,7 +13,7 @@ Data-repo location + client come from cmlib (config-driven, machine-local state)
 """
 import json, os, sqlite3, re, glob, datetime, socket, platform
 from collections import defaultdict
-import cmlib
+from . import cmlib
 
 HOME = os.path.expanduser("~")
 OUT = cmlib.data_dir()

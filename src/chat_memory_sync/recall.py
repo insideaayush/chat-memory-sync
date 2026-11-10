@@ -18,8 +18,7 @@ Agents: run this from inside the repo you're working on, read the top hits,
 then open those files for full context.
 """
 import os, sys, re, glob, sqlite3, argparse, datetime
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import cmlib
+from . import cmlib
 
 REPO = cmlib.data_dir()
 PROJ_DIR = cmlib.projects_dir()
@@ -183,17 +182,17 @@ def search(query, project=None, harness=None, since=None, k=8):
     con.close()
     return [(r, make_snippet(r["path"], query)) for r in rows]
 
-def main():
-    ap = argparse.ArgumentParser(description="find relevant past chats")
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="recall", description="find relevant past chats")
     ap.add_argument("query", nargs="?", default="")
     ap.add_argument("--project", help="project to scope to (default: infer from CWD)")
     ap.add_argument("--all", action="store_true", help="search all projects")
-    ap.add_argument("--harness", help="cursor|claude-code|opencode|pi")
+    ap.add_argument("--harness", help="cursor|cursor-agent|claude-code|opencode|pi|codex|gemini")
     ap.add_argument("--since", help="YYYY-MM or YYYY-MM-DD lower bound")
     ap.add_argument("-k", type=int, default=8, help="max results (default 8)")
     ap.add_argument("--full", action="store_true", help="print file paths only")
     ap.add_argument("--reindex", action="store_true", help="force rebuild index")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     n = ensure_index(force=args.reindex)
     if args.reindex or n is not None:

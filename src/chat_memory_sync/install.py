@@ -1,28 +1,13 @@
 #!/usr/bin/env python3
 """
-One-command installer for chat-memory-sync on any machine.
+Installer: config + data repo + background job + recall command.
 
-    python3 install.py --data-remote git@github.com:you/chat-memory.git \
-                       [--data-dir ~/chat-memory] [--client NAME] [--time HH:MM]
-
-Does:
-  1. write ~/.config/chat-memory/config.json (data_dir + client)
-  2. clone (or init) the private DATA repo at --data-dir
-  3. run the sync once (export + commit + push)
-  4. register a daily background job for the current OS:
-       macOS -> launchd | Windows -> Task Scheduler | Linux -> systemd timer/cron
-  5. install a `recall` command on PATH
-
-Re-running is safe; it overwrites the job and config.
+Invoked as `chat-memory install ...`. Registers a daily job that runs
+`chat-memory sync` via the OS scheduler (launchd / Task Scheduler / systemd|cron).
 """
-import os, sys, subprocess, platform, argparse, getpass
+import os, sys, subprocess, platform, argparse, getpass, shutil
+from . import cmlib
 
-SYNC_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, SYNC_DIR)
-import cmlib
-
-RUN = os.path.join(SYNC_DIR, "run.py")
-RECALL = os.path.join(SYNC_DIR, "recall.py")
 PY = sys.executable or "python3"
 LABEL = "com.user.chat-memory-sync"
 
@@ -32,10 +17,26 @@ def sh(cmd, **kw):
     return subprocess.run(cmd, **kw)
 
 
+def sync_command():
+    """The command the scheduler should run to perform a sync."""
+    exe = shutil.which("chat-memory")
+    if exe:
+        return [exe, "sync"]
+    return [PY, "-m", "chat_memory_sync", "sync"]
+
+
+def recall_command_str():
+    exe = shutil.which("recall")
+    if exe:
+        return None  # already on PATH via the package entry point
+    return f'"{PY}" -m chat_memory_sync.recall'
+
+
 # ----------------------------------------------------------- schedulers ------
 
-def _mac_launcher():
-    import shutil
+def _mac_launcher(cmd):
+    """Compile a Mach-O named 'chat-memory-sync' so Login Items shows a friendly
+    name instead of the interpreter. Returns its path or None."""
     cc = shutil.which("cc") or shutil.which("clang")
     if not cc:
         return None
@@ -44,11 +45,12 @@ def _mac_launcher():
     os.makedirs(srcdir, exist_ok=True)
     src = os.path.join(srcdir, "chat-memory-sync.c")
     out = os.path.join(bindir, "chat-memory-sync")
+    argv = ", ".join(['"chat-memory-sync"'] + [f'"{a}"' for a in cmd[1:]] + ["(char*)0"])
     open(src, "w").write(
         "#include <unistd.h>\n#include <sys/wait.h>\nint main(void){\n"
         "  pid_t p=fork();\n  if(p==0){\n"
-        f'    char *a[]={{"chat-memory-sync","{RUN}",(char*)0}};\n'
-        f'    execv("{PY}",a);\n    _exit(127);\n  }}\n'
+        f"    char *a[]={{{argv}}};\n"
+        f'    execv("{cmd[0]}",a);\n    _exit(127);\n  }}\n'
         "  int s=0; waitpid(p,&s,0);\n  return WIFEXITED(s)?WEXITSTATUS(s):1;\n}\n")
     if subprocess.run([cc, "-O2", "-o", out, src], capture_output=True).returncode == 0:
         return out
@@ -56,9 +58,12 @@ def _mac_launcher():
 
 
 def install_mac(hh, mm):
-    launcher = _mac_launcher()
-    prog = (f"<array><string>{launcher}</string></array>" if launcher
-            else f"<array><string>{PY}</string><string>{RUN}</string></array>")
+    cmd = sync_command()
+    launcher = _mac_launcher(cmd)
+    if launcher:
+        prog = f"<array><string>{launcher}</string></array>"
+    else:
+        prog = "<array>" + "".join(f"<string>{a}</string>" for a in cmd) + "</array>"
     state = cmlib.state_dir()
     plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -85,16 +90,15 @@ def install_mac(hh, mm):
 
 
 def install_windows(hh, mm):
-    pyw = PY
-    cand = os.path.join(os.path.dirname(PY), "pythonw.exe")
-    if os.path.isfile(cand):
-        pyw = cand
+    cmd = sync_command()
+    tr = " ".join(f'"{a}"' if " " in a else a for a in cmd)
     sh(["schtasks", "/Create", "/F", "/TN", "ChatMemorySync",
-        "/SC", "DAILY", "/ST", f"{hh:02d}:{mm:02d}", "/TR", f'"{pyw}" "{RUN}"'])
+        "/SC", "DAILY", "/ST", f"{hh:02d}:{mm:02d}", "/TR", tr])
     print(f"Task Scheduler job 'ChatMemorySync' installed (daily {hh:02d}:{mm:02d})")
 
 
 def install_linux(hh, mm):
+    cmd = " ".join(sync_command())
     unit_dir = os.path.expanduser("~/.config/systemd/user")
     have_systemd = subprocess.run(["systemctl", "--user", "--version"],
                                   capture_output=True).returncode == 0
@@ -102,7 +106,7 @@ def install_linux(hh, mm):
         os.makedirs(unit_dir, exist_ok=True)
         open(os.path.join(unit_dir, "chat-memory-sync.service"), "w").write(
             f"[Unit]\nDescription=chat-memory sync\n\n[Service]\nType=oneshot\n"
-            f"ExecStart={PY} {RUN}\n")
+            f"ExecStart={cmd}\n")
         open(os.path.join(unit_dir, "chat-memory-sync.timer"), "w").write(
             f"[Unit]\nDescription=daily chat-memory sync\n\n[Timer]\n"
             f"OnCalendar=*-*-* {hh:02d}:{mm:02d}:00\nPersistent=true\n\n"
@@ -112,21 +116,25 @@ def install_linux(hh, mm):
         print(f"systemd user timer installed (daily {hh:02d}:{mm:02d}). "
               f"Tip: `loginctl enable-linger {getpass.getuser()}` to run while logged out.")
         return
-    line = f"{mm} {hh} * * * {PY} {RUN} >> {cmlib.state_dir()}/cron.log 2>&1"
+    line = f"{mm} {hh} * * * {cmd} >> {cmlib.state_dir()}/cron.log 2>&1"
     cur = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
-    lines = [l for l in cur.splitlines() if "chat-memory" not in l and RUN not in l]
+    lines = [l for l in cur.splitlines() if "chat-memory" not in l]
     lines.append(line + "  # chat-memory")
     subprocess.run(["crontab", "-"], input="\n".join(lines) + "\n", text=True)
     print(f"cron job installed (daily {hh:02d}:{mm:02d})")
 
 
 def install_recall_launcher():
+    if shutil.which("recall"):
+        print("recall command already on PATH (package entry point)")
+        return
+    cmd = recall_command_str()
     home = os.path.expanduser("~")
     if platform.system() == "Windows":
         bindir = os.path.join(home, "bin")
         os.makedirs(bindir, exist_ok=True)
         p = os.path.join(bindir, "recall.cmd")
-        open(p, "w").write(f'@echo off\r\n"{PY}" "{RECALL}" %*\r\n')
+        open(p, "w").write(f'@echo off\r\n{cmd} %*\r\n')
         print(f"recall command -> {p}  (ensure {bindir} is on PATH)")
         return
     path_dirs = os.environ.get("PATH", "").split(":")
@@ -134,13 +142,9 @@ def install_recall_launcher():
     bindir = next((d for d in prefs if d in path_dirs), os.path.join(home, "bin"))
     os.makedirs(bindir, exist_ok=True)
     p = os.path.join(bindir, "recall")
-    open(p, "w").write(f'#!/bin/bash\nexec "{PY}" "{RECALL}" "$@"\n')
+    open(p, "w").write(f'#!/bin/bash\nexec {cmd} "$@"\n')
     os.chmod(p, 0o755)
-    if bindir in path_dirs:
-        print(f"recall command -> {p}")
-    else:
-        print(f"recall command -> {p}\n  NOTE: add to PATH:\n"
-              f'    echo \'export PATH="{bindir}:$PATH"\' >> ~/.zshrc  (then open a new shell)')
+    print(f"recall command -> {p}" + ("" if bindir in path_dirs else f"  (add {bindir} to PATH)"))
 
 
 # ----------------------------------------------------------- data repo -------
@@ -151,8 +155,7 @@ def setup_data_repo(data_dir, remote):
         return
     os.makedirs(os.path.dirname(os.path.abspath(data_dir)) or ".", exist_ok=True)
     if remote:
-        r = sh(["git", "clone", remote, data_dir])
-        if r.returncode != 0:
+        if sh(["git", "clone", remote, data_dir]).returncode != 0:
             print("clone failed; initializing empty repo instead")
             _init_repo(data_dir, remote)
     else:
@@ -168,13 +171,14 @@ def _init_repo(data_dir, remote):
 
 # ----------------------------------------------------------------- main ------
 
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="chat-memory install")
     ap.add_argument("--data-remote", help="git URL of your private data repo (recommended)")
     ap.add_argument("--data-dir", help="where the data repo lives (default ~/chat-memory)")
     ap.add_argument("--client", help="name for this machine (default: hostname)")
     ap.add_argument("--time", default="21:00", help="daily run time HH:MM (default 21:00)")
-    args = ap.parse_args()
+    ap.add_argument("--no-job", action="store_true", help="skip registering the background job")
+    args = ap.parse_args(argv)
 
     cfg = cmlib.load_config()
     data_dir = os.path.abspath(os.path.expanduser(
@@ -194,13 +198,13 @@ def main():
     setup_data_repo(data_dir, args.data_remote)
 
     print("\n== first run ==")
-    rc = subprocess.run([PY, RUN]).returncode
-    if rc != 0:
+    if subprocess.run(sync_command()).returncode != 0:
         print("first run returned non-zero; check the log in", cmlib.state_dir())
 
-    print("\n== background job ==")
-    s = platform.system()
-    (install_mac if s == "Darwin" else install_windows if s == "Windows" else install_linux)(hh, mm)
+    if not args.no_job:
+        print("\n== background job ==")
+        s = platform.system()
+        (install_mac if s == "Darwin" else install_windows if s == "Windows" else install_linux)(hh, mm)
 
     print("\n== recall command ==")
     install_recall_launcher()
