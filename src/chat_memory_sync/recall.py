@@ -3,19 +3,21 @@
 recall - find relevant past chats without scanning the whole repo.
 
 Builds a local SQLite full-text index (BM25) over all chat markdown and queries
-it, auto-scoped to the current project. The index (.sync/index.db) is rebuilt
-automatically when chats change; it is machine-local (gitignored).
-
-Usage:
-  recall "affiliate tier rebate"              # auto-scope to CWD's project
-  recall "worktree flow" --project based-one-mono
-  recall "nesting model" --all                # search every project
-  recall "payout bug" --harness cursor --since 2026-09 -k 10
-  recall "..." --full                         # print file paths only (for piping)
-  recall --reindex                            # force rebuild the index
+it, auto-scoped to the current project. The index lives under the machine-local
+state dir (e.g. ~/.config/chat-memory/index.db) and is rebuilt automatically when
+chats change. It is never committed to the data repo.
 
 Agents: run this from inside the repo you're working on, read the top hits,
 then open those files for full context.
+"""
+
+EXAMPLES = """examples:
+  recall "affiliate tier rebate"              auto-scope to the current repo (by CWD)
+  recall "worktree flow" --project based-one-mono
+  recall "nesting model" --all                search every project
+  recall "payout bug" --harness cursor --since 2026-09 -k 10
+  recall "oauth flow" --full                  print file paths only (pipe-friendly)
+  recall --reindex                            force rebuild the index
 """
 import os, sys, re, glob, sqlite3, argparse, datetime
 from . import cmlib
@@ -183,8 +185,14 @@ def search(query, project=None, harness=None, since=None, k=8):
     return [(r, make_snippet(r["path"], query)) for r in rows]
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="recall", description="find relevant past chats")
-    ap.add_argument("query", nargs="?", default="")
+    ap = argparse.ArgumentParser(
+        prog="recall",
+        description="Search your past AI coding chats across all tools and machines.\n"
+                    "Auto-scoped to the current project (by working directory); ranked\n"
+                    "with BM25 and shown with snippets. Part of chat-memory-sync.",
+        epilog=EXAMPLES,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("query", nargs="?", default="", help="search terms")
     ap.add_argument("--project", help="project to scope to (default: infer from CWD)")
     ap.add_argument("--all", action="store_true", help="search all projects")
     ap.add_argument("--harness", help="cursor|cursor-agent|claude-code|opencode|pi|codex|gemini")
