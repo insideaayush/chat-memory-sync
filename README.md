@@ -48,7 +48,16 @@ git clone https://github.com/insideaayush/chat-memory-sync.git
 pip install ./chat-memory-sync
 ```
 
-Then set it up on this machine:
+Then set it up on this machine. Two modes:
+
+**Local (single machine, no git)** &mdash; simplest; chats just live in a folder:
+
+```bash
+chat-memory install --local
+```
+
+**Git (multi-machine, synced)** &mdash; chats live in a private git repo shared across
+your machines:
 
 ```bash
 chat-memory install \
@@ -56,6 +65,11 @@ chat-memory install \
     --client "macbook-air" \
     --time 21:00
 ```
+
+In **local** mode the daily job just exports to `~/chat-memory` (override with
+`--data-dir`); no git, no remote, no commits. In **git** mode it pulls, exports,
+commits, and pushes (see [Multi-machine](#multi-machine)). Switch anytime by
+re-running `install` with/without `--local`.
 
 That one command: writes config, clones (or inits) your private data repo, runs the
 first sync, registers a **daily background job** for your OS, and ensures the `recall`

@@ -173,8 +173,10 @@ def _init_repo(data_dir, remote):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="chat-memory install")
-    ap.add_argument("--data-remote", help="git URL of your private data repo (recommended)")
-    ap.add_argument("--data-dir", help="where the data repo lives (default ~/chat-memory)")
+    ap.add_argument("--local", action="store_true",
+                    help="single-machine mode: store chats in a local folder (no git/remote)")
+    ap.add_argument("--data-remote", help="git URL of your private data repo (recommended for multi-machine)")
+    ap.add_argument("--data-dir", help="where chats are stored (default ~/chat-memory)")
     ap.add_argument("--client", help="name for this machine (default: hostname)")
     ap.add_argument("--time", default="21:00", help="daily run time HH:MM (default 21:00)")
     ap.add_argument("--no-job", action="store_true", help="skip registering the background job")
@@ -186,16 +188,22 @@ def main(argv=None):
     cfg["data_dir"] = data_dir
     if args.client:
         cfg["client"] = args.client.strip()
+    mode = "local" if args.local else cfg.get("mode", "git")
+    cfg["mode"] = mode
     cmlib.save_config(cfg)
-    print(f"config -> {cmlib.CONFIG_PATH}\n  data_dir = {data_dir}\n  client   = {cmlib.client_id()}")
+    print(f"config -> {cmlib.CONFIG_PATH}\n  mode     = {mode}\n  data_dir = {data_dir}\n  client   = {cmlib.client_id()}")
 
     try:
         hh, mm = [int(x) for x in args.time.split(":")]
     except Exception:
         print("bad --time, expected HH:MM"); sys.exit(1)
 
-    print("\n== data repo ==")
-    setup_data_repo(data_dir, args.data_remote)
+    if mode == "local":
+        os.makedirs(data_dir, exist_ok=True)
+        print(f"\n== local mode ==\nchats stored at {data_dir} (no git)")
+    else:
+        print("\n== data repo ==")
+        setup_data_repo(data_dir, args.data_remote)
 
     print("\n== first run ==")
     if subprocess.run(sync_command()).returncode != 0:
@@ -209,12 +217,14 @@ def main(argv=None):
     print("\n== recall command ==")
     install_recall_launcher()
 
-    print("\nDone. The background job keeps this machine's chats synced daily.")
-    has_origin = subprocess.run(["git", "remote", "get-url", "origin"],
-                                cwd=data_dir, capture_output=True).returncode == 0
-    if not has_origin:
-        print("NOTE: data repo has no 'origin' remote - chats commit locally but won't push.\n"
-              f"      git -C {data_dir} remote add origin <url> && git -C {data_dir} push -u origin HEAD")
+    print("\nDone. The background job keeps this machine's chats up to date daily.")
+    if mode != "local":
+        has_origin = subprocess.run(["git", "remote", "get-url", "origin"],
+                                    cwd=data_dir, capture_output=True).returncode == 0
+        if not has_origin:
+            print("NOTE: data repo has no 'origin' remote - chats commit locally but won't push.\n"
+                  f"      git -C {data_dir} remote add origin <url> && git -C {data_dir} push -u origin HEAD\n"
+                  "      (or re-run with --local for single-machine, no-git mode)")
 
 
 # ----------------------------------------------------------- uninstall -------

@@ -37,11 +37,30 @@ def ensure_identity():
     git("config", "user.email", "chat-memory-sync@users.noreply.github.com")
 
 
+def _warm_index():
+    try:
+        from . import recall
+        recall.ensure_index(force=True)
+        log("recall index rebuilt")
+    except Exception as e:
+        log(f"recall index skipped: {e}")
+
+
 def main():
     global REPO, LOG
     REPO = cmlib.data_dir()
     LOG = os.path.join(cmlib.state_dir(), "sync.log")
+    mode = cmlib.load_config().get("mode", "git")
     log("===== sync start =====")
+
+    if mode == "local":
+        os.makedirs(REPO, exist_ok=True)
+        log("local mode (no git)")
+        from . import sync as exporter
+        exporter.main()
+        _warm_index()
+        log("===== sync done =====")
+        return
 
     if not os.path.isdir(os.path.join(REPO, ".git")):
         git("init")
@@ -62,12 +81,7 @@ def main():
     exporter.main()
 
     # warm the recall full-text index so first query after a sync is instant
-    try:
-        from . import recall
-        recall.ensure_index(force=True)
-        log("recall index rebuilt")
-    except Exception as e:
-        log(f"recall index skipped: {e}")
+    _warm_index()
 
     if git("status", "--porcelain").stdout.strip():
         host = subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip() or "machine"
