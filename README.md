@@ -64,12 +64,14 @@ command is available.
 ### Commands
 
 ```
-chat-memory install   # config + data repo + daily job + recall
-chat-memory sync      # pull -> export -> commit -> push (what the job runs)
-chat-memory export    # export only (no git)
-chat-memory recall …  # search past chats (also the standalone `recall` command)
-chat-memory serve     # browse & search your chats in a local web UI
-chat-memory doctor    # config, detected harnesses, chat counts
+chat-memory install    # config + data repo + daily job + recall
+chat-memory sync       # pull -> export -> commit -> push (what the job runs)
+chat-memory export     # export only (no git)
+chat-memory recall …   # search past chats (also the standalone `recall` command)
+chat-memory serve      # browse & search your chats in a local web UI (alias: ui)
+chat-memory config     # show / change config (--data-dir, --client)
+chat-memory doctor     # config, detected harnesses, chat counts
+chat-memory uninstall  # remove the background job (keeps your data repo)
 ```
 
 | OS | Background job |
@@ -110,9 +112,20 @@ chat-memory serve          # opens http://127.0.0.1:8787
 chat-memory serve --port 9000 --no-open
 ```
 
-A lightweight local web UI (pure stdlib, no deps, binds to localhost only): a sidebar
-of projects, instant BM25 search across everything, and a reader that renders each
-chat. Backed by the same index as `recall`.
+A lightweight local web UI (pure stdlib, no deps, binds to localhost only):
+
+- **Chat-style transcript** — messages as bubbles; thinking & tool calls as collapsible
+  steps with previews (Cursor-like).
+- **Instant BM25 search**, plus inline **`@` filters** in the search bar
+  (`@cursor rate limiting`, `@project:my-api`) and a Filters dialog.
+- **⌘K command palette** to jump to any chat; full keyboard nav (`j/k`, `[`/`]`, `e`, `/`).
+- **Light / dark** theme toggle.
+
+Backed by the same index as `recall`.
+
+```bash
+chat-memory serve --port 8787
+```
 
 ## Multi-machine
 

@@ -217,5 +217,69 @@ def main(argv=None):
               f"      git -C {data_dir} remote add origin <url> && git -C {data_dir} push -u origin HEAD")
 
 
+# ----------------------------------------------------------- uninstall -------
+
+def _remove_job():
+    s = platform.system()
+    if s == "Darwin":
+        dest = os.path.expanduser(f"~/Library/LaunchAgents/{LABEL}.plist")
+        subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{LABEL}"], capture_output=True)
+        for p in (dest, os.path.expanduser("~/bin/chat-memory-sync"),
+                  os.path.expanduser("~/bin/.src/chat-memory-sync.c")):
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
+        print("removed launchd job")
+    elif s == "Windows":
+        subprocess.run(["schtasks", "/Delete", "/F", "/TN", "ChatMemorySync"], capture_output=True)
+        print("removed Task Scheduler job")
+    else:
+        ud = os.path.expanduser("~/.config/systemd/user")
+        if subprocess.run(["systemctl", "--user", "--version"], capture_output=True).returncode == 0:
+            subprocess.run(["systemctl", "--user", "disable", "--now", "chat-memory-sync.timer"], capture_output=True)
+            for f in ("chat-memory-sync.timer", "chat-memory-sync.service"):
+                p = os.path.join(ud, f)
+                try:
+                    if os.path.exists(p):
+                        os.remove(p)
+                except Exception:
+                    pass
+            subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        cur = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
+        if "chat-memory" in cur:
+            lines = [l for l in cur.splitlines() if "chat-memory" not in l]
+            subprocess.run(["crontab", "-"], input="\n".join(lines) + "\n", text=True)
+        print("removed scheduled job")
+
+
+def _remove_recall_launcher():
+    for d in ("~/.local/bin/recall", "~/bin/recall"):
+        p = os.path.expanduser(d)
+        try:
+            if os.path.isfile(p) and "chat_memory_sync" in open(p).read():
+                os.remove(p); print("removed", p)
+        except Exception:
+            pass
+
+
+def uninstall_main(argv=None):
+    ap = argparse.ArgumentParser(prog="chat-memory uninstall",
+                                 description="remove the background job (your data repo is left intact)")
+    ap.add_argument("--purge", action="store_true",
+                    help="also delete local config + search index (NOT the data repo)")
+    a = ap.parse_args(argv)
+    _remove_job()
+    _remove_recall_launcher()
+    if a.purge:
+        import shutil
+        if os.path.isdir(cmlib.CONFIG_DIR):
+            shutil.rmtree(cmlib.CONFIG_DIR, ignore_errors=True)
+            print("removed config dir", cmlib.CONFIG_DIR)
+    print("Done. Your chat data repo was not touched.")
+    return 0
+
+
 if __name__ == "__main__":
     main()

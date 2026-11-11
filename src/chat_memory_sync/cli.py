@@ -12,8 +12,10 @@ commands:
   sync        pull -> export all harnesses -> commit -> push (what the job runs)
   export      export only (no git)
   recall      search past chats (also available as the `recall` command)
-  serve       browse & search your chats in a local web UI
+  serve       browse & search your chats in a local web UI (alias: ui)
+  config      show or change config (data dir, client)
   doctor      show config, detected harnesses, and chat counts
+  uninstall   remove the background job (keeps your data repo)
   version     print version
 
 examples:
@@ -21,8 +23,32 @@ examples:
   chat-memory sync
   chat-memory recall "auth token refresh"
   chat-memory serve
+  chat-memory config --client macbook-air
   recall "rate limiting" --all
 """
+
+
+def config_cmd(argv):
+    import argparse, json, os
+    from . import cmlib
+    ap = argparse.ArgumentParser(prog="chat-memory config",
+                                 description="show or change config")
+    ap.add_argument("--data-dir", help="set the data repo location")
+    ap.add_argument("--client", help="set this machine's client name")
+    a = ap.parse_args(argv)
+    cfg = cmlib.load_config()
+    changed = False
+    if a.data_dir:
+        cfg["data_dir"] = os.path.abspath(os.path.expanduser(a.data_dir)); changed = True
+    if a.client:
+        cfg["client"] = a.client.strip(); changed = True
+    if changed:
+        cmlib.save_config(cfg); print("updated.\n")
+    print(json.dumps(cmlib.load_config(), indent=2))
+    print(f"\nconfig file : {cmlib.CONFIG_PATH}")
+    print(f"data dir    : {cmlib.data_dir()}")
+    print(f"state dir   : {cmlib.state_dir()}")
+    return 0
 
 
 def doctor():
@@ -53,8 +79,12 @@ def main():
         from . import sync; return sync.main()
     if cmd == "recall":
         from . import recall; return recall.main(rest)
-    if cmd == "serve":
+    if cmd in ("serve", "ui"):
         from . import web; return web.main(rest)
+    if cmd == "config":
+        return config_cmd(rest)
+    if cmd == "uninstall":
+        from . import install; return install.uninstall_main(rest)
     if cmd in ("doctor", "status"):
         return doctor()
     print(f"unknown command: {cmd}\n", file=sys.stderr)
