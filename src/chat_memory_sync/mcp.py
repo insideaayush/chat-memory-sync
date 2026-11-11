@@ -140,24 +140,36 @@ def handle(msg):
 
 
 def serve():
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            msg = json.loads(line)
-        except Exception:
-            continue
-        resp = handle(msg)
-        if resp is not None:
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except Exception:
+                continue
+            resp = handle(msg)
+            if resp is not None:
+                sys.stdout.write(json.dumps(resp) + "\n")
+                sys.stdout.flush()
+    except (KeyboardInterrupt, EOFError, BrokenPipeError):
+        pass
 
 
 def main(argv=None):
     argparse.ArgumentParser(prog="chat-memory mcp",
                             description="run the Model Context Protocol server (stdio)").parse_args(argv)
+    if sys.stdin.isatty():
+        sys.stderr.write(
+            "chat-memory MCP server (stdio).\n"
+            "This is meant to be launched by an MCP-capable tool, not run by hand.\n"
+            "Add it once, e.g.:  claude mcp add chat-memory -- chat-memory mcp\n"
+            "See: https://github.com/insideaayush/chat-memory-sync/blob/main/docs/agent-integration.md\n"
+            "Waiting for JSON-RPC on stdin\u2026 (Ctrl-C to quit)\n")
+        sys.stderr.flush()
     serve()
+    return 0
 
 
 if __name__ == "__main__":
