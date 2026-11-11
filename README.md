@@ -213,6 +213,7 @@ automatically — copy-paste blocks per harness are in
 
 ## Contributing & community
 
+- **[RECIPES.md](RECIPES.md)** — common tasks, copy-paste.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — add a harness adapter (the main ask) or fix a bug.
 - **[ROADMAP.md](ROADMAP.md)** — planned work; pick anything up.
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**.
