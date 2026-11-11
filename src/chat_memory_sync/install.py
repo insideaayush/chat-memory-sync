@@ -149,17 +149,57 @@ def install_recall_launcher():
 
 # ----------------------------------------------------------- data repo -------
 
+def _git(d, *a, **kw):
+    return subprocess.run(["git", "-C", d, *a], capture_output=True, text=True, **kw)
+
+
+def _ensure_identity(d):
+    if _git(d, "config", "user.email").stdout.strip():
+        return
+    _git(d, "config", "user.name", "chat-memory-sync")
+    _git(d, "config", "user.email", "chat-memory-sync@users.noreply.github.com")
+
+
+def _ensure_remote(data_dir, remote):
+    if not remote:
+        return
+    if _git(data_dir, "remote", "get-url", "origin").returncode != 0:
+        sh(["git", "-C", data_dir, "remote", "add", "origin", remote])
+
+
 def setup_data_repo(data_dir, remote):
-    if os.path.isdir(os.path.join(data_dir, ".git")):
+    gitdir = os.path.join(data_dir, ".git")
+    if os.path.isdir(gitdir):
+        _ensure_remote(data_dir, remote)
         print(f"data repo already present: {data_dir}")
         return
-    os.makedirs(os.path.dirname(os.path.abspath(data_dir)) or ".", exist_ok=True)
+    nonempty = os.path.isdir(data_dir) and any(os.scandir(data_dir))
+    if not nonempty:
+        os.makedirs(os.path.dirname(os.path.abspath(data_dir)) or ".", exist_ok=True)
+        if remote:
+            if sh(["git", "clone", remote, data_dir]).returncode != 0:
+                print("clone failed; initializing empty repo instead")
+                _init_repo(data_dir, remote)
+        else:
+            _init_repo(data_dir, None)
+        return
+    # convert an existing local folder into a git repo in place
+    print(f"converting local folder to a git repo: {data_dir}")
+    sh(["git", "init", "-q", data_dir])
+    _ensure_identity(data_dir)
+    _ensure_remote(data_dir, remote)
+    sh(["git", "-C", data_dir, "add", "-A"])
+    _git(data_dir, "commit", "-qm", "Import local chats")
     if remote:
-        if sh(["git", "clone", remote, data_dir]).returncode != 0:
-            print("clone failed; initializing empty repo instead")
-            _init_repo(data_dir, remote)
-    else:
-        _init_repo(data_dir, None)
+        _git(data_dir, "branch", "-M", "main")
+        _git(data_dir, "fetch", "origin")
+        if _git(data_dir, "ls-remote", "--heads", "origin", "main").stdout.strip():
+            pr = _git(data_dir, "pull", "--rebase", "--allow-unrelated-histories", "origin", "main")
+            if pr.returncode != 0:
+                print(f"  auto-merge hit conflicts; resolve in {data_dir}, then: git push -u origin main")
+                return
+        push = _git(data_dir, "push", "-u", "origin", "main")
+        print("  pushed to origin" if push.returncode == 0 else "  push failed: " + push.stderr.strip())
 
 
 def _init_repo(data_dir, remote):
@@ -183,12 +223,21 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     cfg = cmlib.load_config()
-    data_dir = os.path.abspath(os.path.expanduser(
-        args.data_dir or cfg.get("data_dir") or os.path.join(cmlib.HOME, "chat-memory")))
+    data_dir = (os.path.abspath(os.path.expanduser(args.data_dir))
+                if args.data_dir else cmlib.data_dir())
     cfg["data_dir"] = data_dir
     if args.client:
         cfg["client"] = args.client.strip()
-    mode = "local" if args.local else cfg.get("mode", "git")
+    if args.local:
+        mode = "local"
+    elif args.data_remote:
+        mode = "git"
+    elif cfg.get("mode"):
+        mode = cfg["mode"]
+    elif os.path.isdir(os.path.join(data_dir, ".git")):
+        mode = "git"
+    else:
+        mode = "local"  # default for new installs
     cfg["mode"] = mode
     cmlib.save_config(cfg)
     print(f"config -> {cmlib.CONFIG_PATH}\n  mode     = {mode}\n  data_dir = {data_dir}\n  client   = {cmlib.client_id()}")

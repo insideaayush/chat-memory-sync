@@ -55,7 +55,7 @@ def config_cmd(argv):
 def doctor():
     import os, glob, shutil
     from . import cmlib
-    mode = cmlib.load_config().get('mode', 'git')
+    mode = cmlib.mode()
     print(f"chat-memory-sync {__version__}")
     print(f"config file : {cmlib.CONFIG_PATH} ({'exists' if os.path.exists(cmlib.CONFIG_PATH) else 'missing'})")
     print(f"mode        : {mode}" + ("  (local folder, no git)" if mode == 'local' else "  (git sync)"))

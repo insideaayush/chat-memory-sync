@@ -49,6 +49,16 @@ def projects_dir():
     return os.path.join(data_dir(), "projects")
 
 
+def mode():
+    """'local' (plain folder, no git) or 'git' (synced repo).
+    Default is local; existing git repos are auto-detected so pre-config installs
+    aren't disrupted."""
+    m = load_config().get("mode")
+    if m:
+        return m
+    return "git" if os.path.isdir(os.path.join(data_dir(), ".git")) else "local"
+
+
 def index_db():
     return os.path.join(state_dir(), "index.db")
 

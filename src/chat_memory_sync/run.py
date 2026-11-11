@@ -50,7 +50,7 @@ def main():
     global REPO, LOG
     REPO = cmlib.data_dir()
     LOG = os.path.join(cmlib.state_dir(), "sync.log")
-    mode = cmlib.load_config().get("mode", "git")
+    mode = cmlib.mode()
     log("===== sync start =====")
 
     if mode == "local":

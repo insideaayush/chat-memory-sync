@@ -48,28 +48,33 @@ git clone https://github.com/insideaayush/chat-memory-sync.git
 pip install ./chat-memory-sync
 ```
 
-Then set it up on this machine. Two modes:
-
-**Local (single machine, no git)** &mdash; simplest; chats just live in a folder:
-
-```bash
-chat-memory install --local
-```
-
-**Git (multi-machine, synced)** &mdash; chats live in a private git repo shared across
-your machines:
+Then set it up. **Local by default** &mdash; chats just live in a folder
+(`~/chat-memory`, override with `--data-dir`), no git, no remote:
 
 ```bash
-chat-memory install \
-    --data-remote git@github.com:<you>/chat-memory.git \
-    --client "macbook-air" \
-    --time 21:00
+chat-memory install
 ```
 
-In **local** mode the daily job just exports to `~/chat-memory` (override with
-`--data-dir`); no git, no remote, no commits. In **git** mode it pulls, exports,
-commits, and pushes (see [Multi-machine](#multi-machine)). Switch anytime by
-re-running `install` with/without `--local`.
+### Go multi-machine later (seamless)
+
+When you want your chats synced across machines, point it at a **private** git repo.
+It converts your existing local folder into a git repo **in place**, imports your chats,
+and pushes &mdash; no re-export, nothing lost:
+
+```bash
+chat-memory install --data-remote git@github.com:<you>/chat-memory.git --client "macbook-air"
+```
+
+From then on the daily job pulls, exports, commits, and pushes
+(see [Multi-machine](#multi-machine)). On your **other** machines, clone that repo and
+install against it:
+
+```bash
+chat-memory install --data-dir ~/chat-memory --data-remote git@github.com:<you>/chat-memory.git --client "other-laptop"
+```
+
+> `--local` forces local mode explicitly; passing `--data-remote` selects git mode.
+> `chat-memory doctor` shows the current mode.
 
 That one command: writes config, clones (or inits) your private data repo, runs the
 first sync, registers a **daily background job** for your OS, and ensures the `recall`
