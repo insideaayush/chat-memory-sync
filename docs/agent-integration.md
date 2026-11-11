@@ -61,8 +61,42 @@ Use this to avoid re-deriving decisions, repeating past mistakes, or missing con
 from a different tool/session.
 ```
 
-## Roadmap: native tool access (MCP)
+## Native tool access via MCP (recommended, cross-harness)
 
-A built-in **MCP server** exposing `recall` as a tool (so MCP-capable harnesses can call
-it without shell access) is planned — see [ROADMAP.md](../ROADMAP.md). Until then, the
-shell command works in any harness with terminal access.
+`chat-memory mcp` runs a **Model Context Protocol** server over stdio, exposing your
+memory as first-class tools to any MCP-capable harness — no shell required. Tools:
+
+- `recall(query, project?, harness?, since?, limit?)` — ranked past chats + snippets
+- `get_chat(path)` — full transcript of a chat (path comes from a recall result)
+- `list_projects()` — projects with chat counts
+
+Configure it **once per harness**:
+
+**Claude Code**
+```bash
+claude mcp add chat-memory -- chat-memory mcp
+```
+
+**Cursor** — `~/.cursor/mcp.json` (or a project `.cursor/mcp.json`):
+```json
+{ "mcpServers": { "chat-memory": { "command": "chat-memory", "args": ["mcp"] } } }
+```
+
+**Codex** — `~/.codex/config.toml`:
+```toml
+[mcp_servers.chat-memory]
+command = "chat-memory"
+args = ["mcp"]
+```
+
+**Gemini CLI** — `~/.gemini/settings.json`:
+```json
+{ "mcpServers": { "chat-memory": { "command": "chat-memory", "args": ["mcp"] } } }
+```
+
+**Any MCP client** — run `chat-memory mcp` as a stdio server (command `chat-memory`,
+arg `mcp`). If `chat-memory` isn't on the harness's PATH, use the absolute path from
+`which chat-memory`.
+
+After adding it, your agent can call `recall` natively and pull in prior context from
+every tool you use. (The shell approach above still works too, and needs no config.)

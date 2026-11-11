@@ -18,8 +18,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-harness) for the adapter contract
 
 ## Retrieval & memory quality
 
-- [ ] **MCP server** exposing `recall` as a tool, so MCP-capable harnesses can query
-      memory natively (no shell needed).
+- [x] **MCP server** (`chat-memory mcp`) exposing `recall` / `get_chat` / `list_projects`
+      as tools, so MCP-capable harnesses can query memory natively (no shell needed).
 - [ ] **Semantic search** option (local embeddings + vector index) alongside BM25.
 - [ ] **Cross-harness dedup** — collapse the same conversation captured by two tools.
 - [ ] **Per-chat summaries** / auto-tags in frontmatter for better ranking & scanning.

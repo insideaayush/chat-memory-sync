@@ -44,6 +44,14 @@ recall "oauth" --full | head -1 | xargs less
 chat-memory serve        # opens http://127.0.0.1:8787
 ```
 
+## Use it as a native tool (MCP)
+
+```bash
+chat-memory mcp          # stdio MCP server (you normally let a harness launch this)
+```
+
+See the agent-memory recipe above for per-harness config.
+
 - `/` search, `⌘K` jump to any chat, `j`/`k` move, `↵` open, `[` `]` prev/next,
   `e` expand all, `b` sidebar, `?` help.
 - Inline filters in the search box: `@cursor rate limiting`, `@project:my-api oauth`.
@@ -62,6 +70,30 @@ Read the top hits, then open those files for full context.
 ```
 
 Now an assistant in Claude Code can pull up what you discussed in Cursor weeks ago.
+
+### Native tool via MCP (cross-harness, recommended)
+
+Expose memory as first-class tools (`recall`, `get_chat`, `list_projects`) to any
+MCP-capable harness — configure once, no shell needed:
+
+```bash
+# Claude Code
+claude mcp add chat-memory -- chat-memory mcp
+```
+
+```json
+// Cursor  (~/.cursor/mcp.json)  |  Gemini CLI (~/.gemini/settings.json)
+{ "mcpServers": { "chat-memory": { "command": "chat-memory", "args": ["mcp"] } } }
+```
+
+```toml
+# Codex  (~/.codex/config.toml)
+[mcp_servers.chat-memory]
+command = "chat-memory"
+args = ["mcp"]
+```
+
+See [docs/agent-integration.md](docs/agent-integration.md) for all harnesses.
 
 ## Sync across machines (go multi-machine)
 

@@ -88,6 +88,7 @@ chat-memory sync       # pull -> export -> commit -> push (what the job runs)
 chat-memory export     # export only (no git)
 chat-memory recall …   # search past chats (also the standalone `recall` command)
 chat-memory serve      # browse & search your chats in a local web UI (alias: ui)
+chat-memory mcp        # MCP server: expose recall as a tool to any MCP harness
 chat-memory config     # show / change config (--data-dir, --client)
 chat-memory doctor     # config, detected harnesses, chat counts
 chat-memory uninstall  # remove the background job (keeps your data repo)

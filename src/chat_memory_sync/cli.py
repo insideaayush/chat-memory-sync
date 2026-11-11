@@ -13,6 +13,7 @@ commands:
   export      export only (no git)
   recall      search past chats (also available as the `recall` command)
   serve       browse & search your chats in a local web UI (alias: ui)
+  mcp         run the MCP server (exposes recall as a tool to any MCP harness)
   config      show or change config (data dir, client)
   doctor      show config, detected harnesses, and chat counts
   uninstall   remove the background job (keeps your data repo)
@@ -84,6 +85,8 @@ def main():
         from . import recall; return recall.main(rest)
     if cmd in ("serve", "ui"):
         from . import web; return web.main(rest)
+    if cmd == "mcp":
+        from . import mcp; return mcp.main(rest)
     if cmd == "config":
         return config_cmd(rest)
     if cmd == "uninstall":
