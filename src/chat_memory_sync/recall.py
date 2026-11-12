@@ -57,6 +57,14 @@ def canonical_project(path):
             common = os.path.realpath(common)
             if os.path.basename(common) == ".git":
                 return _slug(os.path.basename(os.path.dirname(common)))
+    segs = [s for s in p.replace("\\", "/").split("/") if s]
+    for i, s in enumerate(segs):
+        if s in (".worktrees", "worktrees"):
+            after = segs[i + 1:]
+            if len(after) >= 2:
+                return _slug(after[0])
+            if i >= 1:
+                return _slug(segs[i - 1])
     return _slug(os.path.basename(p))
 
 def read_frontmatter(path):

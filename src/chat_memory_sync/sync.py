@@ -110,16 +110,30 @@ def _repo_name(p):
             return slug(os.path.basename(os.path.dirname(common)), 60)
     return ""
 
+def _worktree_guess(p):
+    """For a dead/non-git path that follows the git-worktree convention, recover the
+    repo name: '.worktrees/<repo>/<branch...>' -> <repo>; '<repo>/.worktrees/<branch>'
+    -> <repo>. Empty if the path has no worktrees segment."""
+    segs = [s for s in p.replace("\\", "/").split("/") if s]
+    for i, s in enumerate(segs):
+        if s in (".worktrees", "worktrees"):
+            after = segs[i + 1:]
+            if len(after) >= 2:
+                return slug(after[0], 60)
+            if i >= 1:
+                return slug(segs[i - 1], 60)
+    return ""
+
 def canonical_project(path):
     """Map any cwd / worktree / sub-directory path to one repo-level project key.
-    A project == its git repository; falls back to the folder basename when the
-    path isn't a git repo (or no longer exists). Machine-agnostic."""
+    A project == its git repository (by remote-origin name); then the git-worktree
+    convention; then the folder basename. Machine-agnostic."""
     if not path:
         return "_unknown"
     p = path.rstrip("/")
     if p in _PROJ_CACHE:
         return _PROJ_CACHE[p]
-    proj = _repo_name(p) or slug(os.path.basename(p), 60) or "_unknown"
+    proj = _repo_name(p) or _worktree_guess(p) or slug(os.path.basename(p), 60) or "_unknown"
     _PROJ_CACHE[p] = proj
     return proj
 
