@@ -11,7 +11,7 @@ files are only rewritten when content changes (updates to OLD chats included).
 
 Data-repo location + client come from cmlib (config-driven, machine-local state).
 """
-import json, os, sqlite3, re, glob, datetime, socket, platform
+import json, os, sqlite3, re, glob, datetime, socket, platform, subprocess
 from collections import defaultdict
 from . import cmlib
 
@@ -75,26 +75,53 @@ def slug(s, n=55):
     s = re.sub(r"[^\w\- ]", "", s).strip().replace(" ", "-")
     return s[:n] or "untitled"
 
-# parents under which the first segment is the project/repo name
-WS_MARKERS = ["/ws/", "/pspace/", "/src/", "/code/", "/projects/", "/Developer/"]
+_PROJ_CACHE = {}
+
+def _name_from_url(url):
+    url = url.strip().rstrip("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    return re.split(r"[/:]", url)[-1] if url else ""
+
+def _git(p, *args):
+    try:
+        r = subprocess.run(["git", "-C", p, *args], capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+def _repo_name(p):
+    """Repo name for a path. Prefers the remote 'origin' name so every clone,
+    worktree and branch-checkout of the same repo collapses to one project.
+    Falls back to the repo's root dir name. '' if not a git repo."""
+    if not os.path.isdir(p):
+        return ""
+    url = _git(p, "config", "--get", "remote.origin.url")
+    if url:
+        n = slug(_name_from_url(url), 60)
+        if n:
+            return n
+    common = _git(p, "rev-parse", "--git-common-dir")
+    if common:
+        if not os.path.isabs(common):
+            common = os.path.join(p, common)
+        common = os.path.realpath(common)
+        if os.path.basename(common) == ".git":
+            return slug(os.path.basename(os.path.dirname(common)), 60)
+    return ""
 
 def canonical_project(path):
-    """Map any cwd/worktree/subapp path to a single repo-level project key."""
+    """Map any cwd / worktree / sub-directory path to one repo-level project key.
+    A project == its git repository; falls back to the folder basename when the
+    path isn't a git repo (or no longer exists). Machine-agnostic."""
     if not path:
         return "_unknown"
     p = path.rstrip("/")
-    for m in WS_MARKERS:
-        i = p.find(m)
-        if i != -1:
-            rest = p[i + len(m):].split("/")
-            rest = [x for x in rest if x]
-            if not rest:
-                continue
-            if rest[0] == ".worktrees" and len(rest) > 1:
-                return slug(rest[1], 60)
-            return slug(rest[0], 60)
-    base = os.path.basename(p)
-    return slug(base, 60) if base else "_unknown"
+    if p in _PROJ_CACHE:
+        return _PROJ_CACHE[p]
+    proj = _repo_name(p) or slug(os.path.basename(p), 60) or "_unknown"
+    _PROJ_CACHE[p] = proj
+    return proj
 
 def render_message(m):
     role = m.get("role", "?")

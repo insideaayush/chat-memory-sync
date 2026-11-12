@@ -9,8 +9,9 @@ feature can learn from what you discussed about it in a *different* tool weeks a
 
 - **Many harnesses** → one place: Cursor, Cursor Agent CLI, Claude Code, OpenCode, Pi,
   Codex, Gemini CLI. (Antigravity is stubbed — opaque local store.)
-- **Project-organized** so memory is scoped to the repo you're in (worktrees/sub-apps
-  merged into the parent repo).
+- **Project-organized** so memory is scoped to the repo you're in. A *project* is a
+  **git repository** (identified by its remote name), so clones, worktrees and
+  sub-directories of the same repo all group together — works on any machine layout.
 - **Multi-machine** via a *client* dimension (mac / pc / cloud) — each machine syncs
   independently; no machine ever clobbers another's chats.
 - **Private by design**: the tooling is open source; your chats live in a **separate

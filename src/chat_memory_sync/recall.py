@@ -19,33 +19,44 @@ EXAMPLES = """examples:
   recall "websocket reconnect" --full          print file paths only (pipe-friendly)
   recall --reindex                             force rebuild the index
 """
-import os, sys, re, glob, sqlite3, argparse, datetime
+import os, sys, re, glob, sqlite3, argparse, datetime, subprocess
 from . import cmlib
 
 REPO = cmlib.data_dir()
 PROJ_DIR = cmlib.projects_dir()
 DB = cmlib.index_db()
 
-WS_MARKERS = ["/ws/", "/pspace/", "/src/", "/code/", "/projects/", "/Developer/"]
-
 def _slug(s, n=60):
     s = re.sub(r"\s+", " ", (s or "").strip())
     s = re.sub(r"[^\w\- ]", "", s).strip().replace(" ", "-")
     return s[:n] or ""
 
+def _git(p, *args):
+    try:
+        r = subprocess.run(["git", "-C", p, *args], capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
 def canonical_project(path):
+    """Resolve a path to its repo name (remote-origin name first, so clones/worktrees
+    collapse together; then repo root dir; then basename). Matches sync.py."""
     if not path:
         return ""
-    p = os.path.abspath(path).rstrip("/")
-    for m in WS_MARKERS:
-        i = p.find(m)
-        if i != -1:
-            rest = [x for x in p[i + len(m):].split("/") if x]
-            if not rest:
-                continue
-            if rest[0] == ".worktrees" and len(rest) > 1:
-                return _slug(rest[1])
-            return _slug(rest[0])
+    p = os.path.abspath(os.path.expanduser(path)).rstrip("/")
+    if os.path.isdir(p):
+        url = _git(p, "config", "--get", "remote.origin.url")
+        if url:
+            n = _slug(re.sub(r"\.git$", "", url.strip().rstrip("/")).rsplit("/", 1)[-1].rsplit(":", 1)[-1])
+            if n:
+                return n
+        common = _git(p, "rev-parse", "--git-common-dir")
+        if common:
+            if not os.path.isabs(common):
+                common = os.path.join(p, common)
+            common = os.path.realpath(common)
+            if os.path.basename(common) == ".git":
+                return _slug(os.path.basename(os.path.dirname(common)))
     return _slug(os.path.basename(p))
 
 def read_frontmatter(path):
