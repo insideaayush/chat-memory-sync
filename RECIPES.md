@@ -136,8 +136,19 @@ chat-memory install --time 22:00         # reschedule the daily job
 
 ```bash
 chat-memory doctor
-# shows: version, mode (local/git), data dir, client, index status, chat counts
+# shows: version, mode (local/git), data dir, client, index status, chat counts, last sync
 ```
+
+## See sync logs (did the job run? any errors?)
+
+```bash
+chat-memory logs          # last 40 lines of manual + background syncs
+chat-memory logs -n 100   # more
+chat-memory logs -f       # follow live (e.g. while running `chat-memory sync`)
+```
+
+Each run logs start → pulled → index rebuilt → committed/pushed (or "no changes") → done,
+with timestamps. A recent background-job failure is flagged here and in `doctor`.
 
 ## A harness isn't showing up?
 
