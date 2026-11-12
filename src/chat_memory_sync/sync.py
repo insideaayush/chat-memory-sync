@@ -955,6 +955,22 @@ def main():
                          f"{e['msgs']} | {e['models']} | [open]({e['rel'].replace(' ', '%20')}) |")
         write_if_changed(os.path.join(PROJ_DIR, proj, "INDEX.md"), "\n".join(lines) + "\n")
 
+    # drop project dirs that no longer have any chats (e.g. after re-bucketing):
+    # remove their stale INDEX.md and any now-empty directories.
+    for pdir in glob.glob(os.path.join(PROJ_DIR, "*")):
+        if not os.path.isdir(pdir) or os.path.basename(pdir) in index:
+            continue
+        for root, dirs, files in os.walk(pdir, topdown=False):
+            for f in files:
+                if f == "INDEX.md":
+                    try: os.remove(os.path.join(root, f))
+                    except OSError: pass
+            for dn in dirs:
+                try: os.rmdir(os.path.join(root, dn))
+                except OSError: pass
+        try: os.rmdir(pdir)
+        except OSError: pass
+
     rows = sorted(((p, len(e), max((x["updated"] for x in e), default=0),
                     sorted({x["client"] for x in e})) for p, e in index.items()),
                   key=lambda r: r[2], reverse=True)
