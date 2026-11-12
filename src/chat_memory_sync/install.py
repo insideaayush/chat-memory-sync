@@ -276,6 +276,133 @@ def main(argv=None):
                   "      (or re-run with --local for single-machine, no-git mode)")
 
 
+# ------------------------------------------------------------- UI service ----
+
+UI_LABEL = "com.user.chat-memory-ui"
+
+
+def cm_cmd(*args):
+    exe = shutil.which("chat-memory")
+    return ([exe] if exe else [PY, "-m", "chat_memory_sync"]) + list(args)
+
+
+def _hosts_path():
+    return (r"C:\Windows\System32\drivers\etc\hosts"
+            if platform.system() == "Windows" else "/etc/hosts")
+
+
+def _add_host_entry(host):
+    hp = _hosts_path()
+    entry = f"127.0.0.1\t{host}\t# chat-memory-ui"
+    try:
+        content = open(hp).read()
+    except Exception:
+        content = ""
+    for line in content.splitlines():
+        if line.strip().startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and host in parts[1:]:
+            print(f"hosts: {host} already mapped")
+            return True
+    if platform.system() == "Windows":
+        print(f"hosts: add this line to {hp} as Administrator:\n  {entry}")
+        return False
+    try:
+        with open(hp, "a") as f:
+            f.write(entry + "\n")
+        print(f"hosts: added {host}")
+        return True
+    except PermissionError:
+        print(f"hosts: adding {host} (needs sudo)\u2026")
+        r = subprocess.run(["sudo", "sh", "-c", f"printf '%s\\n' '{entry}' >> {hp}"])
+        if r.returncode == 0:
+            print(f"hosts: added {host}")
+            return True
+        print(f"hosts: couldn't add automatically. Run:\n  echo '{entry}' | sudo tee -a {hp}")
+        return False
+
+
+def _remove_host_entry(host):
+    hp = _hosts_path()
+    if platform.system() == "Windows":
+        print(f"hosts: remove the '{host}' line from {hp} manually.")
+        return
+    try:
+        lines = open(hp).read().splitlines()
+    except Exception:
+        return
+    kept = [l for l in lines if not (host in l.split() and "chat-memory-ui" in l)]
+    if len(kept) == len(lines):
+        return
+    body = "\n".join(kept) + "\n"
+    try:
+        open(hp, "w").write(body)
+    except PermissionError:
+        subprocess.run(["sudo", "sh", "-c", f"cat > {hp}"], input=body, text=True)
+    print(f"hosts: removed {host}")
+
+
+def install_ui(host="chat-memory.local", port=8787):
+    added = _add_host_entry(host)
+    cmd = cm_cmd("serve", "--port", str(port), "--no-open")
+    state = cmlib.state_dir()
+    s = platform.system()
+    if s == "Darwin":
+        prog = "".join(f"<string>{a}</string>" for a in cmd)
+        plist = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>{UI_LABEL}</string>
+  <key>ProgramArguments</key><array>{prog}</array>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>{state}/ui.out.log</string>
+  <key>StandardErrorPath</key><string>{state}/ui.err.log</string>
+</dict></plist>
+"""
+        dest = os.path.expanduser(f"~/Library/LaunchAgents/{UI_LABEL}.plist")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        open(dest, "w").write(plist)
+        subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{UI_LABEL}"], capture_output=True)
+        subprocess.run(["launchctl", "load", dest])
+    elif s == "Windows":
+        tr = " ".join(f'\"{a}\"' if " " in a else a for a in cmd)
+        subprocess.run(["schtasks", "/Create", "/F", "/TN", "ChatMemoryUI",
+                        "/SC", "ONLOGON", "/TR", tr], capture_output=True)
+        subprocess.Popen(cmd)
+    else:
+        ud = os.path.expanduser("~/.config/systemd/user")
+        os.makedirs(ud, exist_ok=True)
+        open(os.path.join(ud, "chat-memory-ui.service"), "w").write(
+            "[Unit]\nDescription=chat-memory UI\n\n[Service]\nExecStart=" + " ".join(cmd) +
+            "\nRestart=always\n\n[Install]\nWantedBy=default.target\n")
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        subprocess.run(["systemctl", "--user", "enable", "--now", "chat-memory-ui.service"], capture_output=True)
+    print(f"\nUI service installed. Open:  http://{host}:{port}")
+    if not added:
+        print(f"(until the hosts entry is added, use http://127.0.0.1:{port})")
+    return 0
+
+
+def uninstall_ui(host="chat-memory.local"):
+    s = platform.system()
+    if s == "Darwin":
+        subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{UI_LABEL}"], capture_output=True)
+        p = os.path.expanduser(f"~/Library/LaunchAgents/{UI_LABEL}.plist")
+        if os.path.exists(p):
+            os.remove(p)
+    elif s == "Windows":
+        subprocess.run(["schtasks", "/Delete", "/F", "/TN", "ChatMemoryUI"], capture_output=True)
+    else:
+        subprocess.run(["systemctl", "--user", "disable", "--now", "chat-memory-ui.service"], capture_output=True)
+        up = os.path.expanduser("~/.config/systemd/user/chat-memory-ui.service")
+        if os.path.exists(up):
+            os.remove(up)
+    _remove_host_entry(host)
+    print("UI service removed.")
+    return 0
+
+
 # ----------------------------------------------------------- uninstall -------
 
 def _remove_job():

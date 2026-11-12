@@ -207,6 +207,7 @@ body{margin:0;font:13.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Robot
 .tag{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:999px;background:var(--panel2);
   border:1px solid var(--line);color:var(--mut);font-size:10.5px;line-height:1;white-space:nowrap}
 .tag.mono{font-family:var(--mono);color:var(--tool)}
+.tag .tk{color:var(--dim);margin-right:6px;font-weight:400}
 .kbd{display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--line2);border-bottom-width:2px;
   border-radius:5px;font:11px var(--mono);color:var(--mut);background:var(--panel)}
 .btn{display:inline-flex;align-items:center;gap:6px;height:var(--h);padding:0 11px;border:1px solid var(--line);
@@ -423,8 +424,12 @@ function renderList(withSnip){
   items.forEach((r,idx)=>{
     const el=E('div','row'); el.dataset.i=idx;
     el.append(E('div','t',esc(r.title)||'(untitled)'));
-    const m=E('div','m');m.append(E('span','tag mono',r.harness),E('span','date',r.date||''),E('span',null,esc(r.client||'')));
-    if(r.project&&(withSnip||!fProject))m.append(E('span','tag',esc(r.project)));
+    const m=E('div','m');
+    const hn=E('span','tag mono',r.harness); hn.title='harness (tool)';
+    const dt=E('span','date',r.date||''); dt.title='last active';
+    const cl=E('span',null,esc(r.client||'')); cl.title='machine (client)';
+    m.append(hn,dt,cl);
+    if(r.project&&(withSnip||!fProject)){const pj=E('span','tag',esc(r.project));pj.title='project (repo)';m.append(pj)}
     el.append(m);
     if(withSnip&&r.snippet)el.append(E('div','s',hl(r.snippet)));
     el.onclick=()=>openIdx(idx);
@@ -515,7 +520,8 @@ async function openChat(path){
   $('#view').innerHTML='<div class="empty">loading\u2026</div>';
   const d=await j('/api/chat?path='+encodeURIComponent(path));
   const V=$('#view'); if(!d.turns){V.innerHTML='<div class="empty">not found</div>';return}
-  const m=d.meta||{}; const chips=['harness','project','client','created','updated','models'].filter(k=>m[k]).map(k=>'<span class="tag">'+esc(m[k])+'</span>').join('');
+  const m=d.meta||{}; const LBL={harness:'harness',project:'project',client:'machine',created:'created',updated:'updated',models:'model'};
+  const chips=['harness','project','client','created','updated','models'].filter(k=>m[k]).map(k=>'<span class="tag"><span class="tk">'+LBL[k]+'</span>'+esc(m[k])+'</span>').join('');
   V.innerHTML=''; const head=E('div');head.id='vhead';head.innerHTML='<h1>'+esc(d.title||'(untitled)')+'</h1><div class="chips">'+chips+'</div>';V.append(head);
   const th=E('div');th.id='thread';
   d.turns.forEach(t=>{const role=['user','assistant','system'].includes(t.role)?t.role:'assistant';
@@ -607,7 +613,18 @@ def main(argv=None):
                                  description="browse & search your chats in a local web UI")
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    ap.add_argument("--host", default="chat-memory.local",
+                    help="hostname for --install (default chat-memory.local)")
+    ap.add_argument("--install", action="store_true",
+                    help="add a hosts entry + run the UI as an always-on service")
+    ap.add_argument("--uninstall", action="store_true", help="remove the UI service + hosts entry")
     args = ap.parse_args(argv)
+    if args.install:
+        from . import install
+        return install.install_ui(args.host, args.port)
+    if args.uninstall:
+        from . import install
+        return install.uninstall_ui(args.host)
     serve(args.port, open_browser=not args.no_open)
 
 

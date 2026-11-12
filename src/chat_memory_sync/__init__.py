@@ -1,2 +1,2 @@
 """chat-memory-sync: unified, searchable memory bank of your AI coding chats."""
-__version__ = "0.6.2"
+__version__ = "0.7.0"

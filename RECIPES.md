@@ -44,6 +44,20 @@ recall "oauth" --full | head -1 | xargs less
 chat-memory serve        # opens http://127.0.0.1:8787
 ```
 
+### Always-on at a friendly hostname
+
+Run the UI as a background service, reachable at `http://chat-memory.local:8787`
+(adds a `/etc/hosts` entry — prompts for your password once):
+
+```bash
+chat-memory serve --install                        # http://chat-memory.local:8787
+chat-memory serve --install --host cm.local --port 9000
+chat-memory serve --uninstall                      # remove service + hosts entry
+```
+
+No sudo? It still installs the always-on service on `127.0.0.1` — use
+`http://127.0.0.1:8787` (or add the hosts line it prints).
+
 ## Use it as a native tool (MCP)
 
 ```bash
